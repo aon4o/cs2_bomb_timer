@@ -136,7 +136,11 @@
                 return;
             }
             if (msg && msg.type === 'bomb_planted') {
-                start40();
+                if (typeof msg.at === 'number') {
+                    startFrom(msg.at);
+                } else {
+                    start40();
+                }
             }
             if (msg && msg.type === 'round_end') {
                 resetTimer();
