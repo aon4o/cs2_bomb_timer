@@ -24,8 +24,21 @@ module.exports = function initRoutes(app, deps) {
         res.sendFile(path.join(__dirname, 'public', 'index.html'));
     });
 
+    let warnedNoAuth = false;
+
     app.post('/events', (req, res) => {
         const payload = req.body || {};
+
+        const expected = process.env.AUTH_TOKEN;
+        if (expected) {
+            const provided = payload?.auth?.token;
+            if (!provided || provided !== expected) {
+                return res.status(401).json({ok: false, error: 'unauthorized'});
+            }
+        } else if (!warnedNoAuth) {
+            warnedNoAuth = true;
+            console.warn('Warning: AUTH_TOKEN not set. /events endpoint is NOT authenticated.');
+        }
 
         try {
             if (isBombPlanted(payload)) {
