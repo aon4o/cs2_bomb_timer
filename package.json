@@ -1,0 +1,27 @@
+{
+  "name": "cs2_gsi",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "express": "^5.1.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  },
+  "nodemonConfig": {
+    "watch": ["server.js", "public"],
+    "ext": "js,html,css",
+    "ignore": ["node_modules"],
+    "exec": "node server.js",
+    "delay": "100ms"
+  }
+}
