@@ -48,15 +48,35 @@
         }
     }
 
-    function start40() {
-        endAt = Date.now() + TOTAL_SECONDS * 1000;
-        timerEl.textContent = '00:40';
+    function startFrom(plantedAtMs) {
+        const end = plantedAtMs + TOTAL_SECONDS * 1000;
+        const remaining = (end - Date.now()) / 1000;
+        if (remaining <= 0) {
+            // already expired; show finished state
+            if (tickInterval) {
+                clearInterval(tickInterval);
+                tickInterval = null;
+            }
+            endAt = null;
+            timerEl.textContent = '00:40';
+            timerEl.classList.remove('running');
+            timerEl.classList.add('stopped');
+            statusEl.textContent = 'Timer finished';
+            timerEl.style.color = '#fff';
+            return;
+        }
+        endAt = end;
+        timerEl.textContent = format(remaining);
         timerEl.classList.remove('stopped');
         timerEl.classList.add('running');
         statusEl.textContent = 'Bomb planted — timer running';
-        setTimerColorByRemaining(TOTAL_SECONDS);
+        setTimerColorByRemaining(remaining);
         if (!tickInterval) tickInterval = setInterval(update, 100);
         update();
+    }
+
+    function start40() {
+        startFrom(Date.now());
     }
 
     function resetTimer() {
@@ -82,27 +102,71 @@
 
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const wsUrl = proto + '://' + location.host;
-    const ws = new WebSocket(wsUrl);
-    setWsStatus('connecting...', '');
 
-    ws.onopen = () => setWsStatus('connected', 'running');
-    ws.onclose = () => setWsStatus('disconnected', 'stopped');
-    ws.onerror = () => setWsStatus('error', 'stopped');
+    let ws = null;
+    let reconnectInterval = null;
 
-    ws.onmessage = (ev) => {
-        let msg;
-        try {
-            msg = JSON.parse(ev.data);
-        } catch {
+    function wireSocket(socket) {
+        socket.onopen = () => {
+            setWsStatus('connected', 'running');
+            if (reconnectInterval) {
+                clearInterval(reconnectInterval);
+                reconnectInterval = null;
+            }
+        };
+        socket.onclose = () => {
+            setWsStatus('disconnected', 'stopped');
+            // Start/ensure a 1-second reconnect checker
+            if (!reconnectInterval) {
+                reconnectInterval = setInterval(() => {
+                    if (!ws || ws.readyState === WebSocket.CLOSED) {
+                        connect();
+                    }
+                }, 1000);
+            }
+        };
+        socket.onerror = () => {
+            setWsStatus('error', 'stopped');
+        };
+        socket.onmessage = (ev) => {
+            let msg;
+            try {
+                msg = JSON.parse(ev.data);
+            } catch {
+                return;
+            }
+            if (msg && msg.type === 'bomb_planted') {
+                start40();
+            }
+            if (msg && msg.type === 'round_end') {
+                resetTimer();
+            }
+        };
+    }
+
+    function connect() {
+        // Avoid creating multiple sockets if one is already open/connecting
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
             return;
         }
-        if (msg && msg.type === 'bomb_planted') {
-            start40();
+        try {
+            setWsStatus('connecting...', '');
+            ws = new WebSocket(wsUrl);
+            wireSocket(ws);
+        } catch (e) {
+            // If constructor throws (very rare), ensure reconnect checker is running
+            if (!reconnectInterval) {
+                reconnectInterval = setInterval(() => {
+                    if (!ws || ws.readyState === WebSocket.CLOSED) {
+                        connect();
+                    }
+                }, 1000);
+            }
         }
-        if (msg && msg.type === 'round_end') {
-            resetTimer();
-        }
-    };
+    }
+
+    // Initial connect
+    connect();
 
     timerEl.style.color = '#fff';
 })();

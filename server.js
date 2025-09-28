@@ -9,6 +9,9 @@ const wss = new WebSocketServer({server});
 
 const PORT = process.env.PORT || 3000;
 
+// Track when the bomb was planted (ms since epoch); null if not planted
+let bombPlantedAt = null;
+
 app.use(express.json({limit: '2mb'}));
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -40,10 +43,14 @@ app.post('/events', (req, res) => {
 
     try {
         if (isBombPlanted(payload)) {
-            broadcast({type: 'bomb_planted', at: Date.now()});
+            const now = Date.now();
+            if (bombPlantedAt == null) bombPlantedAt = now;
+            broadcast({type: 'bomb_planted', at: bombPlantedAt});
         }
         if (isRoundEnd(payload)) {
-            broadcast({type: 'round_end', at: Date.now()});
+            const now = Date.now();
+            broadcast({type: 'round_end', at: now});
+            bombPlantedAt = null;
         }
     } catch (e) {
         console.error('Detection error:', e);
@@ -56,6 +63,9 @@ app.get('/health', (_req, res) => res.json({ok: true}));
 
 wss.on('connection', (ws) => {
     ws.send(JSON.stringify({type: 'hello', msg: 'connected'}));
+    if (bombPlantedAt != null) {
+        ws.send(JSON.stringify({type: 'bomb_planted', at: bombPlantedAt}));
+    }
 });
 
 server.listen(PORT, () => {
