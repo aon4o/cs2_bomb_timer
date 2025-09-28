@@ -1,9 +1,9 @@
 {
   "name": "cs2_gsi",
   "version": "1.0.0",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node index.js",
     "dev": "nodemon",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,10 +18,14 @@
     "nodemon": "^3.1.7"
   },
   "nodemonConfig": {
-    "watch": ["server.js", "public"],
+    "watch": [
+      "./*"
+    ],
     "ext": "js,html,css",
-    "ignore": ["node_modules"],
-    "exec": "node server.js",
+    "ignore": [
+      "node_modules"
+    ],
+    "exec": "node index.js",
     "delay": "100ms"
   }
 }
